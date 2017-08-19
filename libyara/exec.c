@@ -107,7 +107,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
           uint8_t* data = block->fetch_data(block); \
           if (data == NULL) \
             return UNDEFINED; \
-          result = *(type *)(data + offset - block->base); \
+          memcpy(&result, data + offset - block->base, sizeof(type)); \
           result = endianess##_##type(result); \
           return result; \
         } \
@@ -135,15 +135,17 @@ static uint8_t* jmp_if(
     int condition,
     uint8_t* ip)
 {
+  YR_VALUE value;
   uint8_t* result;
 
   if (condition)
   {
-    result = *(uint8_t**)(ip);
+    memcpy(&value, ip, sizeof(value));
+    result = (uint8_t*) value.p;
   }
   else
   {
-    result = ip + sizeof(uint64_t);
+    result = ip + sizeof(value);
   }
 
   return result;
