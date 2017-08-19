@@ -172,14 +172,10 @@ int yr_execute_code(
 
   YR_INIT_RULE_ARGS init_rule_args;
 
-  YR_RULE* rule;
   YR_MATCH* match;
   YR_OBJECT_FUNCTION* function;
   YR_OBJECT** obj_ptr;
   YR_ARENA* obj_arena;
-
-  char* identifier;
-  char* args_fmt;
 
   int i;
   int found;
@@ -223,8 +219,8 @@ int yr_execute_code(
         break;
 
       case OP_PUSH:
-        r1.i = *(uint64_t*)(ip);
-        ip += sizeof(uint64_t);
+        memcpy(&r1.i, ip, sizeof(r1.i));
+        ip += sizeof(r1.i);
         push(r1);
         break;
 
@@ -233,42 +229,42 @@ int yr_execute_code(
         break;
 
       case OP_CLEAR_M:
-        r1.i = *(uint64_t*)(ip);
-        ip += sizeof(uint64_t);
+        memcpy(&r1.i, ip, sizeof(r1.i));
+        ip += sizeof(r1.i);
         mem[r1.i] = 0;
         break;
 
       case OP_ADD_M:
-        r1.i = *(uint64_t*)(ip);
-        ip += sizeof(uint64_t);
+        memcpy(&r1.i, ip, sizeof(r1.i));
+        ip += sizeof(r1.i);
         pop(r2);
         if (!is_undef(r2))
           mem[r1.i] += r2.i;
         break;
 
       case OP_INCR_M:
-        r1.i = *(uint64_t*)(ip);
-        ip += sizeof(uint64_t);
+        memcpy(&r1.i, ip, sizeof(r1.i));
+        ip += sizeof(r1.i);
         mem[r1.i]++;
         break;
 
       case OP_PUSH_M:
-        r1.i = *(uint64_t*)(ip);
-        ip += sizeof(uint64_t);
+        memcpy(&r1.i, ip, sizeof(r1.i));
+        ip += sizeof(r1.i);
         r1.i = mem[r1.i];
         push(r1);
         break;
 
       case OP_POP_M:
-        r1.i = *(uint64_t*)(ip);
-        ip += sizeof(uint64_t);
+        memcpy(&r1.i, ip, sizeof(r1.i));
+        ip += sizeof(r1.i);
         pop(r2);
         mem[r1.i] = r2.i;
         break;
 
       case OP_SWAPUNDEF:
-        r1.i = *(uint64_t*)(ip);
-        ip += sizeof(uint64_t);
+        memcpy(&r1.i, ip, sizeof(r1.i));
+        ip += sizeof(r1.i);
         pop(r2);
 
         if (is_undef(r2))
@@ -419,12 +415,12 @@ int yr_execute_code(
         break;
 
       case OP_PUSH_RULE:
-        rule = *(YR_RULE**)(ip);
-        ip += sizeof(uint64_t);
-        if (RULE_IS_DISABLED(rule))
+        memcpy(&r1, ip, sizeof(r1));
+        ip += sizeof(r1);
+        if (RULE_IS_DISABLED(r1.rule))
           r1.i = UNDEFINED;
         else
-          r1.i = rule->t_flags[tidx] & RULE_TFLAGS_MATCH ? 1 : 0;
+          r1.i = r1.rule->t_flags[tidx] & RULE_TFLAGS_MATCH ? 1 : 0;
         push(r1);
         break;
 
@@ -440,17 +436,17 @@ int yr_execute_code(
         break;
 
       case OP_MATCH_RULE:
-        pop(r1);
-        rule = *(YR_RULE**)(ip);
-        ip += sizeof(uint64_t);
+        memcpy(&r1, ip, sizeof(r1));
+        ip += sizeof(r1);
+        pop(r2);
 
-        if (!is_undef(r1) && r1.i)
-          rule->t_flags[tidx] |= RULE_TFLAGS_MATCH;
-        else if (RULE_IS_GLOBAL(rule))
-          rule->ns->t_flags[tidx] |= NAMESPACE_TFLAGS_UNSATISFIED_GLOBAL;
+        if (!is_undef(r2) && r2.i)
+          r1.rule->t_flags[tidx] |= RULE_TFLAGS_MATCH;
+        else if (RULE_IS_GLOBAL(r1.rule))
+          r1.rule->ns->t_flags[tidx] |= NAMESPACE_TFLAGS_UNSATISFIED_GLOBAL;
 
         #ifdef PROFILING_ENABLED
-        rule->clock_ticks += clock() - start;
+        r1.rule->clock_ticks += clock() - start;
         start = clock();
         #endif
 
@@ -458,12 +454,12 @@ int yr_execute_code(
         break;
 
       case OP_OBJ_LOAD:
-        identifier = *(char**)(ip);
-        ip += sizeof(uint64_t);
+        memcpy(&r1, ip, sizeof(r1));
+        ip += sizeof(r1);
 
         r1.o = (YR_OBJECT*) yr_hash_table_lookup(
             context->objects_table,
-            identifier,
+            r1.p,
             NULL);
 
         assert(r1.o != NULL);
@@ -471,13 +467,13 @@ int yr_execute_code(
         break;
 
       case OP_OBJ_FIELD:
-        identifier = *(char**)(ip);
-        ip += sizeof(uint64_t);
+        memcpy(&r1, ip, sizeof(r1));
+        ip += sizeof(r1);
 
-        pop(r1);
-        ensure_defined(r1);
+        pop(r2);
+        ensure_defined(r2);
 
-        r1.o = yr_object_lookup_field(r1.o, identifier);
+        r1.o = yr_object_lookup_field(r2.o, r1.p);
 
         assert(r1.o != NULL);
         push(r1);
@@ -548,10 +544,9 @@ int yr_execute_code(
         break;
 
       case OP_CALL:
-        args_fmt = *(char**)(ip);
-        ip += sizeof(uint64_t);
-
-        i = (int) strlen(args_fmt);
+        memcpy(&r3, ip, sizeof(r3));
+        ip += sizeof(r3);
+        i = (int) strlen(r3.p);
         count = 0;
 
         // pop arguments from stack and copy them to args array
@@ -588,7 +583,7 @@ int yr_execute_code(
           if (function->prototypes[i].arguments_fmt == NULL)
             break;
 
-          if (strcmp(function->prototypes[i].arguments_fmt, args_fmt) == 0)
+          if (strcmp(function->prototypes[i].arguments_fmt, r3.p) == 0)
           {
             result = function->prototypes[i].code(args, context, function);
             break;
@@ -619,7 +614,7 @@ int yr_execute_code(
 
       case OP_FOUND:
         pop(r1);
-        r1.i = r1.s->matches[tidx].tail != NULL ? 1 : 0;
+        r1.i = r1.string->matches[tidx].tail != NULL ? 1 : 0;
         push(r1);
         break;
 
@@ -634,7 +629,7 @@ int yr_execute_code(
           break;
         }
 
-        match = r2.s->matches[tidx].head;
+        match = r2.string->matches[tidx].head;
         r3.i = FALSE;
 
         while (match != NULL)
@@ -662,7 +657,7 @@ int yr_execute_code(
         ensure_defined(r1);
         ensure_defined(r2);
 
-        match = r3.s->matches[tidx].head;
+        match = r3.string->matches[tidx].head;
         r3.i = FALSE;
 
         while (match != NULL && !r3.i)
@@ -684,7 +679,7 @@ int yr_execute_code(
 
       case OP_COUNT:
         pop(r1);
-        r1.i = r1.s->matches[tidx].count;
+        r1.i = r1.string->matches[tidx].count;
         push(r1);
         break;
 
@@ -694,7 +689,7 @@ int yr_execute_code(
 
         ensure_defined(r1);
 
-        match = r2.s->matches[tidx].head;
+        match = r2.string->matches[tidx].head;
         i = 1;
         r3.i = UNDEFINED;
 
@@ -716,7 +711,7 @@ int yr_execute_code(
 
         ensure_defined(r1);
 
-        match = r2.s->matches[tidx].head;
+        match = r2.string->matches[tidx].head;
         i = 1;
         r3.i = UNDEFINED;
 
@@ -739,7 +734,7 @@ int yr_execute_code(
 
         while (!is_undef(r1))
         {
-          if (r1.s->matches[tidx].tail != NULL)
+          if (r1.string->matches[tidx].tail != NULL)
             found++;
           count++;
           pop(r1);
@@ -850,8 +845,8 @@ int yr_execute_code(
         break;
 
       case OP_IMPORT:
-        r1.i = *(uint64_t*)(ip);
-        ip += sizeof(uint64_t);
+        memcpy(&r1.i, ip, sizeof(r1.i));
+        ip += sizeof(r1.i);
 
         result = yr_modules_load((char*) r1.p, context);
 
@@ -893,8 +888,8 @@ int yr_execute_code(
         break;
 
       case OP_INT_TO_DBL:
-        r1.i = *(uint64_t*)(ip);
-        ip += sizeof(uint64_t);
+        memcpy(&r1.i, ip, sizeof(r1.i));
+        ip += sizeof(r1.i);
         r2 = stack[sp - r1.i];
         if (is_undef(r2))
           stack[sp - r1.i].i = UNDEFINED;

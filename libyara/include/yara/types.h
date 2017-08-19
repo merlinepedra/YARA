@@ -468,7 +468,8 @@ typedef union _YR_VALUE
   double d;
   void* p;
   struct _YR_OBJECT* o;
-  YR_STRING* s;
+  YR_STRING* string;
+  YR_RULE* rule;
   SIZED_STRING* ss;
   RE* re;
 

@@ -67,67 +67,73 @@ int yr_parser_emit_with_arg_double(
     uint8_t** instruction_address,
     double** argument_address)
 {
+  YR_VALUE arg;
+
   int result = yr_arena_write_data(
       yyget_extra(yyscanner)->code_arena,
       &instruction,
       sizeof(uint8_t),
       (void**) instruction_address);
 
+  arg.d = argument;
+
   if (result == ERROR_SUCCESS)
     result = yr_arena_write_data(
         yyget_extra(yyscanner)->code_arena,
-        &argument,
-        sizeof(double),
+        &arg,
+        sizeof(arg),
         (void**) argument_address);
 
   return result;
 }
 
 
-int yr_parser_emit_with_arg(
+int yr_parser_emit_with_arg_int64(
     yyscan_t yyscanner,
     uint8_t instruction,
     int64_t argument,
     uint8_t** instruction_address,
     int64_t** argument_address)
 {
+  YR_VALUE arg;
+
   int result = yr_arena_write_data(
       yyget_extra(yyscanner)->code_arena,
       &instruction,
       sizeof(uint8_t),
       (void**) instruction_address);
 
+  arg.i = argument;
+
   if (result == ERROR_SUCCESS)
     result = yr_arena_write_data(
         yyget_extra(yyscanner)->code_arena,
-        &argument,
-        sizeof(int64_t),
+        &arg,
+        sizeof(arg),
         (void**) argument_address);
 
   return result;
 }
 
 
-int yr_parser_emit_with_arg_reloc(
+int yr_parser_emit_with_arg_ptr(
     yyscan_t yyscanner,
     uint8_t instruction,
     void* argument,
     uint8_t** instruction_address,
     void** argument_address)
 {
+  YR_VALUE arg;
   int64_t* ptr = NULL;
-  int result;
 
-  DECLARE_REFERENCE(void*, ptr) arg;
-
-  memset(&arg, 0, sizeof(arg));
-  arg.ptr = argument;
-
-  result = yr_arena_write_data(
+  int result = yr_arena_write_data(
       yyget_extra(yyscanner)->code_arena,
       &instruction,
       sizeof(uint8_t),
       (void**) instruction_address);
+
+  memset(&arg, 0, sizeof(arg));
+  arg.p = argument;
 
   if (result == ERROR_SUCCESS)
     result = yr_arena_write_data(
@@ -183,7 +189,7 @@ int yr_parser_emit_pushes_for_strings(
       if ((*target_identifier == '\0' && *string_identifier == '\0') ||
            *target_identifier == '*')
       {
-        yr_parser_emit_with_arg_reloc(
+        yr_parser_emit_with_arg_ptr(
             yyscanner,
             OP_PUSH,
             string,
@@ -858,7 +864,7 @@ int yr_parser_reduce_rule_declaration_phase_2(
         sizeof(YR_STRING));
   }
 
-  compiler->last_result = yr_parser_emit_with_arg_reloc(
+  compiler->last_result = yr_parser_emit_with_arg_ptr(
       yyscanner,
       OP_MATCH_RULE,
       rule,
@@ -900,7 +906,7 @@ int yr_parser_reduce_string_identifier(
   {
     if (compiler->loop_for_of_mem_offset >= 0) // inside a loop ?
     {
-      yr_parser_emit_with_arg(
+      yr_parser_emit_with_arg_int64(
           yyscanner,
           OP_PUSH_M,
           compiler->loop_for_of_mem_offset,
@@ -953,7 +959,7 @@ int yr_parser_reduce_string_identifier(
 
     if (string != NULL)
     {
-      yr_parser_emit_with_arg_reloc(
+      yr_parser_emit_with_arg_ptr(
           yyscanner,
           OP_PUSH,
           string,
@@ -1112,7 +1118,7 @@ int yr_parser_reduce_import(
         &name);
 
   if (compiler->last_result == ERROR_SUCCESS)
-    compiler->last_result = yr_parser_emit_with_arg_reloc(
+    compiler->last_result = yr_parser_emit_with_arg_ptr(
         yyscanner,
         OP_IMPORT,
         name,
@@ -1209,7 +1215,7 @@ int yr_parser_reduce_operation(
       // One operand is double and the other is integer,
       // cast the integer to double
 
-      compiler->last_result = yr_parser_emit_with_arg(
+      compiler->last_result = yr_parser_emit_with_arg_int64(
           yyscanner,
           OP_INT_TO_DBL,
           (left_operand.type == EXPRESSION_TYPE_INTEGER) ? 2 : 1,

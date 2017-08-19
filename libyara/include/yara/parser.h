@@ -40,7 +40,7 @@ int yr_parser_emit(
     uint8_t** instruction_address);
 
 
-int yr_parser_emit_with_arg(
+int yr_parser_emit_with_arg_int64(
     yyscan_t yyscanner,
     uint8_t instruction,
     int64_t argument,
@@ -56,7 +56,7 @@ int yr_parser_emit_with_arg_double(
     double** argument_address);
 
 
-int yr_parser_emit_with_arg_reloc(
+int yr_parser_emit_with_arg_ptr(
     yyscan_t yyscanner,
     uint8_t instruction,
     void* argument,

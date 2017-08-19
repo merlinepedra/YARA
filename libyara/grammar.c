@@ -2089,7 +2089,7 @@ yyreduce:
 
         if (var_index >= 0)
         {
-          compiler->last_result = yr_parser_emit_with_arg(
+          compiler->last_result = yr_parser_emit_with_arg_int64(
               yyscanner,
               OP_PUSH_M,
               LOOP_LOCAL_VARS * var_index,
@@ -2125,7 +2125,7 @@ yyreduce:
                 compiler->sz_arena, (yyvsp[0].c_string), &id);
 
             if (compiler->last_result == ERROR_SUCCESS)
-              compiler->last_result = yr_parser_emit_with_arg_reloc(
+              compiler->last_result = yr_parser_emit_with_arg_ptr(
                   yyscanner,
                   OP_OBJ_LOAD,
                   id,
@@ -2145,7 +2145,7 @@ yyreduce:
 
             if (rule != NULL)
             {
-              compiler->last_result = yr_parser_emit_with_arg_reloc(
+              compiler->last_result = yr_parser_emit_with_arg_ptr(
                   yyscanner,
                   OP_PUSH_RULE,
                   rule,
@@ -2189,7 +2189,7 @@ yyreduce:
               compiler->sz_arena, (yyvsp[0].c_string), &ident);
 
             if (compiler->last_result == ERROR_SUCCESS)
-              compiler->last_result = yr_parser_emit_with_arg_reloc(
+              compiler->last_result = yr_parser_emit_with_arg_ptr(
                   yyscanner,
                   OP_OBJ_FIELD,
                   ident,
@@ -2299,7 +2299,7 @@ yyreduce:
               compiler->sz_arena, (yyvsp[-1].c_string), &args_fmt);
 
           if (compiler->last_result == ERROR_SUCCESS)
-            compiler->last_result = yr_parser_emit_with_arg_reloc(
+            compiler->last_result = yr_parser_emit_with_arg_ptr(
                 yyscanner,
                 OP_CALL,
                 args_fmt,
@@ -2436,7 +2436,7 @@ yyreduce:
           yr_compiler_set_error_extra_info(compiler, error.message);
 
         if (compiler->last_result == ERROR_SUCCESS)
-          compiler->last_result = yr_parser_emit_with_arg_reloc(
+          compiler->last_result = yr_parser_emit_with_arg_ptr(
               yyscanner,
               OP_PUSH,
               re,
@@ -2476,7 +2476,7 @@ yyreduce:
   case 55:
 #line 936 "grammar.y" /* yacc.c:1661  */
     {
-        compiler->last_result = yr_parser_emit_with_arg(
+        compiler->last_result = yr_parser_emit_with_arg_int64(
             yyscanner, OP_PUSH, 1, NULL, NULL);
 
         ERROR_IF(compiler->last_result != ERROR_SUCCESS);
@@ -2489,7 +2489,7 @@ yyreduce:
   case 56:
 #line 945 "grammar.y" /* yacc.c:1661  */
     {
-        compiler->last_result = yr_parser_emit_with_arg(
+        compiler->last_result = yr_parser_emit_with_arg_int64(
             yyscanner, OP_PUSH, 0, NULL, NULL);
 
         ERROR_IF(compiler->last_result != ERROR_SUCCESS);
@@ -2624,7 +2624,7 @@ yyreduce:
         ERROR_IF(compiler->last_result != ERROR_SUCCESS);
 
         // Push end-of-list marker
-        compiler->last_result = yr_parser_emit_with_arg(
+        compiler->last_result = yr_parser_emit_with_arg_int64(
             yyscanner, OP_PUSH, UNDEFINED, NULL, NULL);
 
         ERROR_IF(compiler->last_result != ERROR_SUCCESS);
@@ -2640,27 +2640,27 @@ yyreduce:
 
         // Clear counter for number of expressions evaluating
         // to TRUE.
-        yr_parser_emit_with_arg(
+        yr_parser_emit_with_arg_int64(
             yyscanner, OP_CLEAR_M, mem_offset + 1, NULL, NULL);
 
         // Clear iterations counter
-        yr_parser_emit_with_arg(
+        yr_parser_emit_with_arg_int64(
             yyscanner, OP_CLEAR_M, mem_offset + 2, NULL, NULL);
 
         if ((yyvsp[-1].integer) == INTEGER_SET_ENUMERATION)
         {
           // Pop the first integer
-          yr_parser_emit_with_arg(
+          yr_parser_emit_with_arg_int64(
               yyscanner, OP_POP_M, mem_offset, &addr, NULL);
         }
         else // INTEGER_SET_RANGE
         {
           // Pop higher bound of set range
-          yr_parser_emit_with_arg(
+          yr_parser_emit_with_arg_int64(
               yyscanner, OP_POP_M, mem_offset + 3, &addr, NULL);
 
           // Pop lower bound of set range
-          yr_parser_emit_with_arg(
+          yr_parser_emit_with_arg_int64(
               yyscanner, OP_POP_M, mem_offset, NULL, NULL);
         }
 
@@ -2686,16 +2686,16 @@ yyreduce:
         // If the value is UNDEFINED instruction OP_ADD_M
         // does nothing.
 
-        yr_parser_emit_with_arg(
+        yr_parser_emit_with_arg_int64(
             yyscanner, OP_ADD_M, mem_offset + 1, NULL, NULL);
 
         // Increment iterations counter
-        yr_parser_emit_with_arg(
+        yr_parser_emit_with_arg_int64(
             yyscanner, OP_INCR_M, mem_offset + 2, NULL, NULL);
 
         if ((yyvsp[-5].integer) == INTEGER_SET_ENUMERATION)
         {
-          yr_parser_emit_with_arg_reloc(
+          yr_parser_emit_with_arg_ptr(
               yyscanner,
               OP_JNUNDEF,
               compiler->loop_address[compiler->loop_depth],
@@ -2705,20 +2705,20 @@ yyreduce:
         else // INTEGER_SET_RANGE
         {
           // Increment lower bound of integer set
-          yr_parser_emit_with_arg(
+          yr_parser_emit_with_arg_int64(
               yyscanner, OP_INCR_M, mem_offset, NULL, NULL);
 
           // Push lower bound of integer set
-          yr_parser_emit_with_arg(
+          yr_parser_emit_with_arg_int64(
               yyscanner, OP_PUSH_M, mem_offset, NULL, NULL);
 
           // Push higher bound of integer set
-          yr_parser_emit_with_arg(
+          yr_parser_emit_with_arg_int64(
               yyscanner, OP_PUSH_M, mem_offset + 3, NULL, NULL);
 
           // Compare higher bound with lower bound, do loop again
           // if lower bound is still lower or equal than higher bound
-          yr_parser_emit_with_arg_reloc(
+          yr_parser_emit_with_arg_ptr(
               yyscanner,
               OP_JLE,
               compiler->loop_address[compiler->loop_depth],
@@ -2736,12 +2736,12 @@ yyreduce:
         // is at the top of the stack. Check if the quantifier
         // is undefined (meaning "all") and replace it with the
         // iterations counter in that case.
-        yr_parser_emit_with_arg(
+        yr_parser_emit_with_arg_int64(
             yyscanner, OP_SWAPUNDEF, mem_offset + 2, NULL, NULL);
 
         // Compare the loop quantifier with the number of
         // expressions evaluating to TRUE.
-        yr_parser_emit_with_arg(
+        yr_parser_emit_with_arg_int64(
             yyscanner, OP_PUSH_M, mem_offset + 1, NULL, NULL);
 
         yr_parser_emit(yyscanner, OP_INT_LE, NULL);
@@ -2770,14 +2770,14 @@ yyreduce:
 
         ERROR_IF(compiler->last_result != ERROR_SUCCESS);
 
-        yr_parser_emit_with_arg(
+        yr_parser_emit_with_arg_int64(
             yyscanner, OP_CLEAR_M, mem_offset + 1, NULL, NULL);
 
-        yr_parser_emit_with_arg(
+        yr_parser_emit_with_arg_int64(
             yyscanner, OP_CLEAR_M, mem_offset + 2, NULL, NULL);
 
         // Pop the first string.
-        yr_parser_emit_with_arg(
+        yr_parser_emit_with_arg_int64(
             yyscanner, OP_POP_M, mem_offset, &addr, NULL);
 
         compiler->loop_for_of_mem_offset = mem_offset;
@@ -2802,16 +2802,16 @@ yyreduce:
         // boolean expression (0 or 1). If the boolean expression
         // returned UNDEFINED the OP_ADD_M won't do anything.
 
-        yr_parser_emit_with_arg(
+        yr_parser_emit_with_arg_int64(
             yyscanner, OP_ADD_M, mem_offset + 1, NULL, NULL);
 
         // Increment iterations counter.
-        yr_parser_emit_with_arg(
+        yr_parser_emit_with_arg_int64(
             yyscanner, OP_INCR_M, mem_offset + 2, NULL, NULL);
 
         // If next string is not undefined, go back to the
         // beginning of the loop.
-        yr_parser_emit_with_arg_reloc(
+        yr_parser_emit_with_arg_ptr(
             yyscanner,
             OP_JNUNDEF,
             compiler->loop_address[compiler->loop_depth],
@@ -2825,12 +2825,12 @@ yyreduce:
         // is at top of the stack. Check if the quantifier is
         // undefined (meaning "all") and replace it with the
         // iterations counter in that case.
-        yr_parser_emit_with_arg(
+        yr_parser_emit_with_arg_int64(
             yyscanner, OP_SWAPUNDEF, mem_offset + 2, NULL, NULL);
 
         // Compare the loop quantifier with the number of
         // expressions evaluating to TRUE.
-        yr_parser_emit_with_arg(
+        yr_parser_emit_with_arg_int64(
             yyscanner, OP_PUSH_M, mem_offset + 1, NULL, NULL);
 
         yr_parser_emit(yyscanner, OP_INT_LE, NULL);
@@ -2867,10 +2867,10 @@ yyreduce:
         YR_FIXUP* fixup;
         void* jmp_destination_addr;
 
-        compiler->last_result = yr_parser_emit_with_arg_reloc(
+        compiler->last_result = yr_parser_emit_with_arg_ptr(
             yyscanner,
             OP_JFALSE,
-            0,          // still don't know the jump destination
+            NULL,          // still don't know the jump destination
             NULL,
             &jmp_destination_addr);
 
@@ -2928,10 +2928,10 @@ yyreduce:
         YR_FIXUP* fixup;
         void* jmp_destination_addr;
 
-        compiler->last_result = yr_parser_emit_with_arg_reloc(
+        compiler->last_result = yr_parser_emit_with_arg_ptr(
             yyscanner,
             OP_JTRUE,
-            0,         // still don't know the jump destination
+            NULL,         // still don't know the jump destination
             NULL,
             &jmp_destination_addr);
 
@@ -3145,7 +3145,7 @@ yyreduce:
 #line 1490 "grammar.y" /* yacc.c:1661  */
     {
         // Push end-of-list marker
-        yr_parser_emit_with_arg(yyscanner, OP_PUSH, UNDEFINED, NULL, NULL);
+        yr_parser_emit_with_arg_int64(yyscanner, OP_PUSH, UNDEFINED, NULL, NULL);
       }
 #line 3151 "grammar.c" /* yacc.c:1661  */
     break;
@@ -3153,7 +3153,7 @@ yyreduce:
   case 89:
 #line 1496 "grammar.y" /* yacc.c:1661  */
     {
-        yr_parser_emit_with_arg(yyscanner, OP_PUSH, UNDEFINED, NULL, NULL);
+        yr_parser_emit_with_arg_int64(yyscanner, OP_PUSH, UNDEFINED, NULL, NULL);
         yr_parser_emit_pushes_for_strings(yyscanner, "$*");
 
         ERROR_IF(compiler->last_result != ERROR_SUCCESS);
@@ -3186,7 +3186,7 @@ yyreduce:
   case 95:
 #line 1532 "grammar.y" /* yacc.c:1661  */
     {
-        yr_parser_emit_with_arg(yyscanner, OP_PUSH, UNDEFINED, NULL, NULL);
+        yr_parser_emit_with_arg_int64(yyscanner, OP_PUSH, UNDEFINED, NULL, NULL);
       }
 #line 3192 "grammar.c" /* yacc.c:1661  */
     break;
@@ -3194,7 +3194,7 @@ yyreduce:
   case 96:
 #line 1536 "grammar.y" /* yacc.c:1661  */
     {
-        yr_parser_emit_with_arg(yyscanner, OP_PUSH, 1, NULL, NULL);
+        yr_parser_emit_with_arg_int64(yyscanner, OP_PUSH, 1, NULL, NULL);
       }
 #line 3200 "grammar.c" /* yacc.c:1661  */
     break;
@@ -3262,7 +3262,7 @@ yyreduce:
   case 101:
 #line 1588 "grammar.y" /* yacc.c:1661  */
     {
-        compiler->last_result = yr_parser_emit_with_arg(
+        compiler->last_result = yr_parser_emit_with_arg_int64(
             yyscanner, OP_PUSH, (yyvsp[0].integer), NULL, NULL);
 
         ERROR_IF(compiler->last_result != ERROR_SUCCESS);
@@ -3300,7 +3300,7 @@ yyreduce:
         yr_free((yyvsp[0].sized_string));
 
         if (compiler->last_result == ERROR_SUCCESS)
-          compiler->last_result = yr_parser_emit_with_arg_reloc(
+          compiler->last_result = yr_parser_emit_with_arg_ptr(
               yyscanner,
               OP_PUSH,
               sized_string,
@@ -3350,7 +3350,7 @@ yyreduce:
   case 106:
 #line 1656 "grammar.y" /* yacc.c:1661  */
     {
-        compiler->last_result = yr_parser_emit_with_arg(
+        compiler->last_result = yr_parser_emit_with_arg_int64(
             yyscanner, OP_PUSH, 1, NULL, NULL);
 
         if (compiler->last_result == ERROR_SUCCESS)
@@ -3386,7 +3386,7 @@ yyreduce:
   case 108:
 #line 1684 "grammar.y" /* yacc.c:1661  */
     {
-        compiler->last_result = yr_parser_emit_with_arg(
+        compiler->last_result = yr_parser_emit_with_arg_int64(
             yyscanner, OP_PUSH, 1, NULL, NULL);
 
         if (compiler->last_result == ERROR_SUCCESS)
