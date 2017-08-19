@@ -58,21 +58,29 @@ order to avoid confusion with operating system threads.
 #define EMIT_DONT_SET_BACKWARDS_CODE    0x04
 
 
-typedef struct _RE_REPEAT_ARGS
+typedef YR_ALIGN(1) struct _RE_REPEAT_ARGS
 {
-  uint16_t  min;
-  uint16_t  max;
-  int32_t   offset;
+  uint16_t min;
+  uint16_t max;
+  int32_t  offset;
 
 } RE_REPEAT_ARGS;
 
 
-typedef struct _RE_REPEAT_ANY_ARGS
+typedef YR_ALIGN(1) struct _RE_REPEAT_ANY_ARGS
 {
-  uint16_t   min;
-  uint16_t   max;
+  uint16_t min;
+  uint16_t max;
 
 } RE_REPEAT_ANY_ARGS;
+
+
+typedef YR_ALIGN(1) struct _RE_MASKED_LITERAL_ARGS
+{
+  uint8_t value;
+  uint8_t mask;
+
+} RE_MASKED_LITERAL_ARGS;
 
 
 typedef struct _RE_EMIT_CONTEXT {
@@ -585,32 +593,6 @@ int _yr_emit_inst_arg_uint8(
 }
 
 
-int _yr_emit_inst_arg_uint16(
-    RE_EMIT_CONTEXT* emit_context,
-    uint8_t opcode,
-    uint16_t argument,
-    uint8_t** instruction_addr,
-    uint16_t** argument_addr,
-    size_t* code_size)
-{
-  FAIL_ON_ERROR(yr_arena_write_data(
-      emit_context->arena,
-      &opcode,
-      sizeof(uint8_t),
-      (void**) instruction_addr));
-
-  FAIL_ON_ERROR(yr_arena_write_data(
-      emit_context->arena,
-      &argument,
-      sizeof(uint16_t),
-      (void**) argument_addr));
-
-  *code_size = sizeof(uint8_t) + sizeof(uint16_t);
-
-  return ERROR_SUCCESS;
-}
-
-
 int _yr_emit_inst_arg_uint32(
     RE_EMIT_CONTEXT* emit_context,
     uint8_t opcode,
@@ -749,6 +731,7 @@ int _yr_re_emit(
   RE_REPEAT_ARGS repeat_args;
   RE_REPEAT_ARGS* repeat_start_args_addr;
   RE_REPEAT_ANY_ARGS repeat_any_args;
+  RE_MASKED_LITERAL_ARGS masked_literal_args;
 
   RE_NODE* left;
   RE_NODE* right;
@@ -774,10 +757,14 @@ int _yr_re_emit(
 
   case RE_NODE_MASKED_LITERAL:
 
-    FAIL_ON_ERROR(_yr_emit_inst_arg_uint16(
+    masked_literal_args.mask = re_node->mask;
+    masked_literal_args.value = re_node->value;
+
+    FAIL_ON_ERROR(_yr_emit_inst_arg_struct(
         emit_context,
         RE_OPCODE_MASKED_LITERAL,
-        re_node->mask << 8 | re_node->value,
+        &masked_literal_args,
+        sizeof(masked_literal_args),
         &instruction_addr,
         NULL,
         code_size));
@@ -1611,6 +1598,7 @@ int _yr_re_fiber_sync(
   RE_SPLIT_ID_TYPE split_id, splits_executed_idx;
 
   int split_already_executed;
+  int16_t jmp_offset;
 
   RE_REPEAT_ARGS* repeat_args;
   RE_REPEAT_ANY_ARGS* repeat_any_args;
@@ -1633,7 +1621,7 @@ int _yr_re_fiber_sync(
       case RE_OPCODE_SPLIT_A:
       case RE_OPCODE_SPLIT_B:
 
-        split_id = *(RE_SPLIT_ID_TYPE*)(fiber->ip + 1);
+        memcpy(&split_id, fiber->ip + 1, sizeof(split_id));
         split_already_executed = FALSE;
 
         for (splits_executed_idx = 0;
@@ -1673,10 +1661,12 @@ int _yr_re_fiber_sync(
           // Branch B adds the offset encoded in the opcode to its instruction
           // pointer.
 
-          branch_b->ip += *(int16_t*)(
-              branch_b->ip
-              + 1  // opcode size
-              + sizeof(RE_SPLIT_ID_TYPE));
+          memcpy(
+             &jmp_offset,
+             branch_b->ip + 1 + sizeof(split_id),
+             sizeof(jmp_offset));
+
+          branch_b->ip += jmp_offset;
 
           splits_executed[splits_executed_count] = split_id;
           splits_executed_count++;
@@ -1796,7 +1786,8 @@ int _yr_re_fiber_sync(
         break;
 
       case RE_OPCODE_JUMP:
-        fiber->ip += *(int16_t*)(fiber->ip + 1);
+        memcpy(&jmp_offset, fiber->ip + 1, sizeof(jmp_offset));
+        fiber->ip += jmp_offset;
         break;
 
       default:
@@ -1858,14 +1849,13 @@ int yr_re_exec(
 {
   uint8_t* ip;
   uint8_t* input;
-  uint8_t mask;
-  uint8_t value;
   uint8_t character_size;
 
   RE_FIBER_LIST fibers;
   RE_THREAD_STORAGE* storage;
   RE_FIBER* fiber;
   RE_FIBER* next_fiber;
+  RE_MASKED_LITERAL_ARGS* ml_args;
 
   int bytes_matched;
   int max_bytes_matched;
@@ -1985,14 +1975,11 @@ int yr_re_exec(
 
         case RE_OPCODE_MASKED_LITERAL:
           prolog;
-          value = *(int16_t*)(ip + 1) & 0xFF;
-          mask = *(int16_t*)(ip + 1) >> 8;
-
+          ml_args = (RE_MASKED_LITERAL_ARGS*)(ip + 1);
           // We don't need to take into account the case-insensitive
           // case because this opcode is only used with hex strings,
           // which can't be case-insensitive.
-
-          match = ((*input & mask) == value);
+          match = ((*input & ml_args->mask) == ml_args->value);
           action = match ? ACTION_NONE : ACTION_KILL;
           fiber->ip += 3;
           break;
@@ -2208,7 +2195,8 @@ int yr_re_fast_exec(
     void* callback_args,
     int* matches)
 {
-  RE_REPEAT_ANY_ARGS* repeat_any_args;
+  RE_REPEAT_ANY_ARGS* ra_args;
+  RE_MASKED_LITERAL_ARGS* ml_args;
 
   uint8_t* code_stack[MAX_FAST_RE_STACK];
   uint8_t* input_stack[MAX_FAST_RE_STACK];
@@ -2218,8 +2206,6 @@ int yr_re_fast_exec(
   uint8_t* input = input_data;
   uint8_t* next_input;
   uint8_t* next_opcode;
-  uint8_t mask;
-  uint8_t value;
 
   int i;
   int stop;
@@ -2295,10 +2281,9 @@ int yr_re_fast_exec(
 
         case RE_OPCODE_MASKED_LITERAL:
 
-          value = *(int16_t*)(ip + 1) & 0xFF;
-          mask = *(int16_t*)(ip + 1) >> 8;
+          ml_args = (RE_MASKED_LITERAL_ARGS*)(ip + 1);
 
-          if ((*input & mask) == value)
+          if ((*input & ml_args->mask) == ml_args->value)
           {
             bytes_matched++;
             input += input_incr;
@@ -2321,10 +2306,10 @@ int yr_re_fast_exec(
 
         case RE_OPCODE_REPEAT_ANY_UNGREEDY:
 
-          repeat_any_args = (RE_REPEAT_ANY_ARGS*)(ip + 1);
+          ra_args = (RE_REPEAT_ANY_ARGS*)(ip + 1);
           next_opcode = ip + 1 + sizeof(RE_REPEAT_ANY_ARGS);
 
-          for (i = repeat_any_args->min + 1; i <= repeat_any_args->max; i++)
+          for (i = ra_args->min + 1; i <= ra_args->max; i++)
           {
             if (bytes_matched + i >= max_bytes_matched)
               break;
@@ -2345,8 +2330,8 @@ int yr_re_fast_exec(
             }
           }
 
-          input += input_incr * repeat_any_args->min;
-          bytes_matched += repeat_any_args->min;
+          input += input_incr * ra_args->min;
+          bytes_matched += ra_args->min;
           bytes_matched = yr_min(bytes_matched, max_bytes_matched);
           ip = next_opcode;
 
