@@ -466,7 +466,8 @@ typedef union _YR_VALUE
 {
   int64_t i;
   double d;
-  void* p;
+  const void* p;
+  const char* sz;
   struct _YR_OBJECT* o;
   YR_STRING* string;
   YR_RULE* rule;

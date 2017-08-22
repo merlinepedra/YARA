@@ -461,7 +461,7 @@ int yr_execute_code(
 
         r1.o = (YR_OBJECT*) yr_hash_table_lookup(
             context->objects_table,
-            r1.p,
+            r1.sz,
             NULL);
 
         assert(r1.o != NULL);
@@ -475,7 +475,7 @@ int yr_execute_code(
         pop(r2);
         ensure_defined(r2);
 
-        r1.o = yr_object_lookup_field(r2.o, r1.p);
+        r1.o = yr_object_lookup_field(r2.o, r1.sz);
 
         assert(r1.o != NULL);
         push(r1);
@@ -548,7 +548,7 @@ int yr_execute_code(
       case OP_CALL:
         memcpy(&r3, ip, sizeof(r3));
         ip += sizeof(r3);
-        i = (int) strlen(r3.p);
+        i = (int) strlen(r3.sz);
         count = 0;
 
         // pop arguments from stack and copy them to args array
@@ -585,7 +585,7 @@ int yr_execute_code(
           if (function->prototypes[i].arguments_fmt == NULL)
             break;
 
-          if (strcmp(function->prototypes[i].arguments_fmt, r3.p) == 0)
+          if (strcmp(function->prototypes[i].arguments_fmt, r3.sz) == 0)
           {
             result = function->prototypes[i].code(args, context, function);
             break;
