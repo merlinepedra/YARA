@@ -515,7 +515,7 @@ static int _yr_ac_find_suitable_transition_table_slot(
 // to its own state. The offset can be any value from 0 to 256, both inclusive,
 // hence 9 bits are required for it. The layout for the slot goes like:
 //
-// 32                      23        0
+// 32                      9         0
 // +-----------------------+---------+
 // | Target state's index  |  Offset |
 // +-----------------------+---------+
@@ -580,9 +580,17 @@ static int _yr_ac_build_transition_table(YR_AC_AUTOMATON* automaton)
 
   while (child_state != NULL)
   {
-    // Each state stores its slot number.
+    // While the state remains in the queue, the value of t_table_slot it the
+    // slot that corresponds to this state in its parent's transition table,
+    // once the state is removed from the queue and processed, t_table_slot will
+    // contain the slot corresponding to the state itself (i.e. the slot of its
+    // failure link)
     child_state->t_table_slot = child_state->input + 1;
 
+    // Create the transition from the root state to the child state. Only the
+    // offset relative to the root state is initialized, the index of the target
+    // state is unkown at this moment and will be updated later, when the child
+    // state is retrieved from the queue and processed.
     t_table[child_state->input + 1] = YR_AC_MAKE_TRANSITION(
         0, child_state->input + 1);
 
@@ -596,6 +604,8 @@ static int _yr_ac_build_transition_table(YR_AC_AUTOMATON* automaton)
   {
     state = _yr_ac_queue_pop(&queue);
 
+    // Find an index (slot) within the transition table that we can assign to
+    // the current state.
     FAIL_ON_ERROR(_yr_ac_find_suitable_transition_table_slot(
         automaton, automaton->arena, state, &slot));
 
@@ -605,7 +615,16 @@ static int _yr_ac_build_transition_table(YR_AC_AUTOMATON* automaton)
     t_table = yr_arena_get_ptr(automaton->arena, YR_AC_TRANSITION_TABLE, 0);
     m_table = yr_arena_get_ptr(automaton->arena, YR_AC_STATE_MATCHES_TABLE, 0);
 
+    // Now that the index of the current state is know, we can update its
+    // parent's transition table, setting the offset for the target node
+    // that we didn't set before.
     t_table[state->t_table_slot] |= (slot << YR_AC_SLOT_OFFSET_BITS);
+
+    // T[S + 0] stores the failure link for state S. Here we are setting this
+    // failure link. At this point state->failure->t_table_slot is set to the
+    // the offset of the failure state within the transition table. This is
+    // because the failure state is guaranteed to be processed before the state
+    // pointing to it.
     t_table[slot] = YR_AC_MAKE_TRANSITION(state->failure->t_table_slot, 0);
 
     // The match table is an array of indexes within YR_AC_MATCHES_POOL. The
@@ -617,17 +636,21 @@ static int _yr_ac_build_transition_table(YR_AC_AUTOMATON* automaton)
     else
       m_table[slot] = state->matches_ref.offset / sizeof(YR_AC_MATCH) + 1;
 
+    // Store the state's index in t_table_slot.
     state->t_table_slot = slot;
 
     yr_bitmask_set(automaton->bitmask, slot);
 
-    // Push children of current_state
     child_state = state->first_child;
 
     while (child_state != NULL)
     {
       child_state->t_table_slot = slot + child_state->input + 1;
 
+      // Create the transition from the current state to the child state. Only
+      // the offset relative to the current state is initialized, the index of
+      // the target state is unkown at this moment and will be updated later,
+      // when the child state is retrieved from the queue and processed.
       t_table[child_state->t_table_slot] = YR_AC_MAKE_TRANSITION(
           0, child_state->input + 1);
 
